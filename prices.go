@@ -1,47 +1,46 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/grbr/binance-price/binance"
-	"github.com/grbr/binance-price/utils"
-	"github.com/shopspring/decimal"
+	"github.com/grbr/binance-price/util"
 )
 
-var cachedBitcoinPrice Price
+var bitcoinPrice *Price = nil
+var fetchError error
 
-func binancePrice(s binance.SymbolOrderBookTickerR) (price Price, err error) {
-	ask, err := decimal.NewFromString(s.AskPrice)
-	if err != nil {
-		return
-	}
-	bid, err := decimal.NewFromString(s.BidPrice)
-	if err != nil {
-		return
-	}
-	return Price{ask, bid}, err
-}
-
-func updateBitcoinPrice() (price Price, err error) {
+func fetchBitcoinPrice() (price *Price, err error) {
 	binanceResp, err := binance.SymbolOrderBookTicker(binance.BTCUSDT)
 	if err != nil {
 		return
 	}
-	priceAtBinance, err := binancePrice(binanceResp)
+	priceAtBinance, err := NewFromSymbolOrderBookTickerR(binanceResp)
 	if err != nil {
 		return
 	}
-	price = ApplyCommission(priceAtBinance)
-	cachedBitcoinPrice = price
+	price = util.Ptr(ApplyCommission(priceAtBinance))
 	return
 }
 
-func CacheBitcoinPriceEvery(millis int64) {
-	utils.SetInterval(func() {
-		updateBitcoinPrice()
+func FetchBitcoinPriceEvery(millis int64) {
+	util.SetInterval(func() {
+		p, err := fetchBitcoinPrice()
+		if err != nil {
+			fmt.Println(err)
+			if p == nil {
+				fetchError = err
+			}
+			return
+		}
+		bitcoinPrice = p
 	}, time.Duration(millis)*time.Millisecond, true)
 }
 
-func GetCachedBitcoinPrice() (Price, error) {
-	return cachedBitcoinPrice, nil
+func GetCachedBitcoinPrice() (price Price, err error) {
+	if bitcoinPrice == nil && fetchError != nil {
+		return price, fetchError
+	}
+	return *bitcoinPrice, nil
 }

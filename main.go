@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/grbr/binance-price/utils"
+	"github.com/grbr/binance-price/util"
 	"github.com/shopspring/decimal"
 )
 
@@ -14,7 +14,7 @@ func priceBitcoinBinance(c *gin.Context) {
 	price, err := GetCachedBitcoinPrice()
 	if err != nil {
 		fmt.Println(err)
-		c.JSON(http.StatusInternalServerError, nil)
+		c.JSON(http.StatusServiceUnavailable, "Service unavailable")
 	} else {
 		c.JSON(http.StatusOK, price.toDTO())
 	}
@@ -24,7 +24,7 @@ func setupRouter(r *gin.Engine) {
 	r.GET("/", priceBitcoinBinance)
 }
 
-func checkConfigAndSetDefaults(config *utils.Config) {
+func checkConfigAndSetDefaults(config *util.Config) {
 	if config.PORT == 0 {
 		config.PORT = 3000
 	}
@@ -43,14 +43,14 @@ func checkConfigAndSetDefaults(config *utils.Config) {
 }
 
 func main() {
-	config, err := utils.LoadConfig(".")
+	config, err := util.LoadConfig(".")
 	if err != nil {
 		log.Fatal("cannot load config: ", err)
 	}
 	checkConfigAndSetDefaults(&config)
 
-	CacheBitcoinPriceEvery(int64(config.UPDATE_INTERVAL_MILLIS))
 	SetCommissionPercent(decimal.NewFromFloat(config.SERVICE_COMMISSION_PERCENT))
+	FetchBitcoinPriceEvery(int64(config.UPDATE_INTERVAL_MILLIS))
 
 	r := gin.Default()
 	setupRouter(r)

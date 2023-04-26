@@ -1,6 +1,9 @@
 package main
 
-import "github.com/shopspring/decimal"
+import (
+	"github.com/grbr/binance-price/binance"
+	"github.com/shopspring/decimal"
+)
 
 type Price struct {
 	Ask decimal.Decimal
@@ -19,4 +22,16 @@ func (p Price) toDTO() PriceDto {
 		p.Bid.StringFixed(8),
 		p.Ask.Add(p.Bid).Div(decimal.NewFromInt(2)).StringFixed(8),
 	}
+}
+
+func NewFromSymbolOrderBookTickerR(s binance.SymbolOrderBookTickerR) (price Price, err error) {
+	ask, err := decimal.NewFromString(s.AskPrice)
+	if err != nil {
+		return
+	}
+	bid, err := decimal.NewFromString(s.BidPrice)
+	if err != nil {
+		return
+	}
+	return Price{ask, bid}, err
 }
